@@ -1,16 +1,10 @@
-import { Controller, Get, Module } from '@nestjs/common';
-
-@Controller()
-class AppController {
-  @Get()
-  hello(): { pid: number; message: string } {
-    // Returning the PID makes it easy to see requests being spread across workers:
-    // hit the endpoint a few times and watch the pid change.
-    return { pid: process.pid, message: 'Hello from a clustered NestJS worker' };
-  }
-}
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 
 @Module({
+  imports: [],
   controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
