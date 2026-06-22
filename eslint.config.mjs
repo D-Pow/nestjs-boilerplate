@@ -1,35 +1,466 @@
-// @ts-check
-import eslint from '@eslint/js';
-import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
-import globals from 'globals';
-import tseslint from 'typescript-eslint';
+import path from 'node:path';
 
-export default tseslint.config(
-  {
-    ignores: ['eslint.config.mjs'],
-  },
-  eslint.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
-  eslintPluginPrettierRecommended,
-  {
-    languageOptions: {
-      globals: {
-        ...globals.node,
-        ...globals.jest,
-      },
-      sourceType: 'commonjs',
-      parserOptions: {
-        projectService: true,
-        tsconfigRootDir: import.meta.dirname,
-      },
-    },
-  },
-  {
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-floating-promises': 'warn',
-      '@typescript-eslint/no-unsafe-argument': 'warn',
-      "prettier/prettier": ["error", { endOfLine: "auto" }],
-    },
-  },
-);
+import eslint from '@eslint/js';
+import tseslint from 'typescript-eslint';
+import stylisticPlugin from '@stylistic/eslint-plugin';
+import importPlugin from 'eslint-plugin-import';
+import importAliasPlugin from 'eslint-plugin-import-alias';
+import importUnusedPlugin from 'eslint-plugin-unused-imports';
+import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
+import globals from 'globals';
+
+import tsconfig from './tsconfig.json' with { type: 'json' };
+
+const rootDir = import.meta.dirname;
+const tsconfigPath = path.resolve(rootDir, 'tsconfig.json');
+
+function stripTrailingSlashAndStar(str) {
+	return str.replace(/[*/]*$/, '');
+}
+
+export default tseslint.config([
+	importPlugin.flatConfigs.recommended,
+	importPlugin.flatConfigs.typescript,
+	eslint.configs.recommended,
+	...tseslint.configs.recommended,
+	{
+		languageOptions: {
+			ecmaVersion: 'latest',
+			sourceType: 'module',
+			globals: {
+				...globals.node,
+			},
+			parserOptions: {
+				/* ESLint root options - See: https://eslint.org/docs/user-guide/configuring/language-options#specifying-parser-options */
+				ecmaVersion: 'latest',
+				sourceType: 'module',
+
+				tsconfigRootDir: rootDir, // Directory that all tsconfig files' paths are relative to in the `parserOptions.project` option
+				// project: tsconfigPath, // tsconfig file (or array of files) from which to extract. Included automatically with `tseslint.config()`
+				projectService: {
+					// Add JS files to eslint-plugin-import
+					allowDefaultProject: [ '*.js', '*.mjs' ],
+				},
+			},
+		},
+		plugins: {
+			'@stylistic': stylisticPlugin,
+			'import-alias': importAliasPlugin,
+			'unused-imports': importUnusedPlugin,
+		},
+		// Settings for specific plugins
+		settings: {
+			'import/resolver': {
+				typescript: createTypeScriptImportResolver({
+					project: tsconfigPath,
+				}),
+				// Needs duplicate. See: https://stackoverflow.com/a/70069522/5771107
+				node: createTypeScriptImportResolver({
+					project: tsconfigPath,
+				}),
+			},
+		},
+		rules: {
+			/* Syntax, logic, and common error-causing rules */
+			'linebreak-style': [ 'error', 'unix' ], // Enforce LF (\n) for newlines and prevent CRLF (\r\n)
+			eqeqeq: [
+				'warn',
+				'always',
+				{
+					// Enforce using triple equals, ===/!===
+					null: 'ignore', // Exception for `x != null` since `!= null` means `!== null && !== undefined`
+				},
+			],
+			camelcase: [
+				'error',
+				{
+					// Enforce camelCase for all variables unless they're in ALL_CAPS
+					properties: 'never', // Allow snake_case in object keys (e.g. for endpoint payload objects)
+					// ignoreDestructuring: true, // Allows destructured object keys to be used without being renamed to camelCase (e.g. `const { a_b } = obj; doSomething(a_b);`)
+					ignoreGlobals: true, // Allow using global variables written in snake_case
+				},
+			],
+			semi: [ 'error', 'always' ], // Enforce semicolon usage
+			'block-scoped-var': 'error', // Prevent relying on `var` hoisting to allow usage outside its scope, e.g. error: `if (foo) { var x = 'X'; } return x + 1;`
+			'brace-style': 'error', // Enforce all function/statement curly braces to be on same line as declaration; else(if) statements on same line as closing curly brace. Defaults to '1tbs' - one-true-brace-style. See: https://eslint.org/docs/rules/brace-style#1tbs
+			'comma-dangle': [ 'error', 'always-multiline' ], // Enforce commas after array/object/import/export/function parameters, but only if they're on multiple lines
+			'comma-style': [ 'error', 'last' ], // Force commas to be at the ends of lines rather than the beginning
+			'no-else-return': [
+				'error',
+				{
+					// Prevent return statements in else-statements if a return exists in the if-statement, e.g. error: `if (x) { return 1; } else { return 2; }`
+					allowElseIf: false, // Also prevent else-if, e.g. error: `if (x) { return 1; } else if (y) { return 2; }`
+				},
+			],
+			'no-lonely-if': 'error', // Merge if-statements into the parent else-statement if it's the only one in the code block, e.g. `else { if (x) { return 3; } }` --> `else if (x) { return 3; }`
+			'no-empty': [
+				'error',
+				{
+					// Prevent empty blocks (default in `eslint:recommended`), e.g. error: `if (x) {}`
+					allowEmptyCatch: true, // Exception: Allow empty catch-statements, e.g. `catch (e) {}`
+				},
+			],
+			curly: 'error', // Enforce using curly braces around if/else/while/for/etc.
+			'nonblock-statement-body-position': [ 'error', 'beside' ], // Enforce inline statements without braces to be on one line (shouldn't be needed due to `curly` above), e.g. `if (foo) bar();`
+			'require-atomic-updates': 'error', // Prevent race conditions from mixing async functions and generators when, for example, both alter the same variable
+			quotes: [
+				'error',
+				'single',
+				{
+					// Enforce using single quotes instead of double quotes
+					avoidEscape: true, // Allow double quotes if escaping would be necessary, e.g. x = "hello 'new' world"
+					allowTemplateLiterals: true, // Allow back-tick quotes all the time regardless of escaping or not, e.g. x = `hello world`
+				},
+			],
+			'quote-props': [ 'error', 'as-needed' ], // Prevent quotes around object keys except for when it's absolutely necessary (e.g. hyphens, language reserved keywords, etc.)
+			'no-prototype-builtins': 'off', // Allow `myObj.hasOwnProperty()` instead of `Object.prototype.hasOwnProperty.call(myObj)`
+			'no-control-regex': 'off', // Allow regexes with unicode strings and other control sequences (e.g. colors for console output: `\x1B[36mHELLO\x1B[39mWORLD`
+			'prefer-const': [
+				'error',
+				{
+					// Prefer `const` over `let` if the variables never change
+					destructuring: 'all', // Allow using `let` if in an object/array destructuring assignment as long as one value changes
+					ignoreReadBeforeAssign: true, // Allow splitting `let` declarations and assignments with functions that use those variables
+				},
+			],
+			'prefer-regex-literals': 'error', // Force using `/regex/` instead of `new RegExp()` when possible
+			'no-unused-vars': [
+				'warn',
+				{
+					// Ignore unused vars when they are part of rest spreads, e.g. `const { used, ...unused } = obj;`
+					ignoreRestSiblings: true,
+				},
+			],
+			'wrap-iife': [
+				'error',
+				'inside',
+				{
+					// Force Immediately-Invoked-Function-Expressions to have parentheses around the declaration, e.g. `(function x() { ... })()`
+					functionPrototypeMethods: true, // Also wrap in parentheses for Function.prototype methods, e.g. `(function x() { ... }).call(...)`
+				},
+			],
+			'dot-notation': 'error', // Enforce using `.` when possible, e.g. `foo.bar` instead of `foo['bar']`. Computed properties are still allowed, e.g. `const bar = 'myField'; foo[bar];`
+			'new-cap': [
+				'error',
+				{
+					// Enforce PascalCase for any constructor-based function calls
+					newIsCap: true, // Anything using `new` needs to be PascalCase (also means classes need to be PascalCase so that `new myClass()` fails)
+					capIsNew: false, // Don't force `new` to be prepended to PascalCase functions since they aren't all necessarily constructors
+				},
+			],
+			'func-style': [
+				'error',
+				'declaration',
+				{
+					// Enforce function declarations instead of expressions, i.e. use `function foo() {...}` instead of `const foo = function () {...}`. Object fields are still allowed: `foo.bar = function () {...}`
+					allowArrowFunctions: true, // Allow arrow functions, i.e. allow `const foo = () => {...}` but not `const foo = function () {...}`
+				},
+			],
+
+			/* Spacing rules */
+			indent: [
+				'error',
+				'tab',
+				{
+					// Indent with 4 spaces, not tab or 2 spaces
+					SwitchCase: 1, // Same for switch-case statements
+					ignoredNodes: [ 'TemplateLiteral' ],
+				},
+			],
+			'keyword-spacing': 'error', // Enforce spaces around language keywords, e.g. else would error in `if (foo) {...}else{...}`
+			'semi-spacing': 'error', // Enforce spacing after semicolons but never before; exception: `for(;;)`, `;func()`, and similar
+			'comma-spacing': [
+				'error',
+				{
+					// Enforce spaces only after commas
+					before: false, // prevent `[ 2 , 3 ]` and `[ 2 ,3 ]`
+					after: true, // e.g. `[ 2, 3 ]` instead of `[ 2,3 ]`
+				},
+			],
+			'space-unary-ops': [
+				'error',
+				{
+					words: true, // Enforce spacing around keywords that accept parentheses, e.g. error: `typeof(obj)`
+					nonwords: false, // Allow spaces around operators, e.g. `!foo` or `foo++`
+				},
+			],
+			// TODO Find a rule that only affects equals operator, nothing else
+			// 'space-infix-ops': 'error', // Enforce spaces between all infix operators (non-unary, non-ternary), e.g. `x = 1`, `1 + 2`, etc.
+			'object-curly-spacing': [
+				'error',
+				'always',
+				{
+					// Enforce spacing between curly braces except for nested objects
+					arraysInObjects: false, // e.g. `x = { a: [ 3 ]}`
+					objectsInObjects: false, // e.g. `x = { a: { b: 3 }}`
+				},
+			],
+			'array-bracket-spacing': [
+				'error',
+				'always',
+				{
+					// Enforce spacing between curly braces except for nested objects
+					arraysInArrays: false, // e.g. `x = [ 2, [ 3 ]]`
+					objectsInArrays: false, // e.g. `x = [ 2, { a: 3 }]`
+				},
+			],
+			'key-spacing': [
+				'error',
+				{
+					// Add spaces after object keys' colons
+					beforeColon: false, // prevent `{ key : val }` and `{ key :val }`
+					afterColon: true, // e.g. `{ key: val }` instead of `{ key:val }`
+				},
+			],
+			'no-whitespace-before-property': 'error', // Prevent spaces between objects and their properties, e.g. `foo [bar]`, `foo. bar`, `foo .bar` (doesn't include chained methods)
+			'space-before-function-paren': [
+				'error',
+				{
+					named: 'never', // Prevent spacing between function name and parentheses, e.g. `function foo() {}` and `class Foo { bar() {} }`
+					anonymous: 'ignore', // Allow spacing around anonymous "function" functions and parentheses, e.g. `function() {}` or `function () {}`
+					asyncArrow: 'ignore', // Allow spacing around anonymous async arrow functions, e.g. `async() => {}` or `async () => {}`
+				},
+			],
+			'func-call-spacing': 'error', // Prevent spacing between function name and parentheses when called, e.g. `func ()`
+			'space-before-blocks': 'error', // Enforce spacing before inline function/class brackets, e.g. error: `func(){ return 3; }`
+			'block-spacing': 'error', // Enforce spacing inside inline function brackets, e.g. error: `func() {return 3;}`
+			'arrow-spacing': 'error', // Enforce spacing before/after `=>` in arrow functions
+			'generator-star-spacing': [
+				'error',
+				{
+					before: false, // Prevent generator * to be on function name, e.g. error: `function *gen() {}`
+					after: true, // Enforce generator * to be on `function` keyword, e.g. `function* gen() {}`
+					anonymous: 'after', // Enforce * after `function` keyword, e.g. `x = function* () {}`
+					method: {
+						// Opposite for classes (since they don't use the `function` keyword)
+						before: true, // Enforce * before function name, e.g. `x = { *gen() {} }`
+						after: false, // Prevent superfluous * after function name, e.g. `x = { * gen() {} }`
+					},
+				},
+			],
+			'yield-star-spacing': [ 'error', 'after' ], // Enforce `yield* generator()` instead of `yield *generator()` (only applicable for yielding generator calls, not values)
+			'computed-property-spacing': 'error', // Prevent spaces in computed properties, e.g. error: the variable in `x = { [ variable ]: 'hi' }`
+			'switch-colon-spacing': 'error', // Enforce spacing after `case X:` colon but not before
+			'no-trailing-spaces': 'error', // Don't allow trailing spaces at the ends of lines
+			'spaced-comment': [
+				'error',
+				'always',
+				{
+					// Enforce at least one space after `//` or `/*`
+					exceptions: [ '*', '-', '+', '#' ], // Exception for comments containing only these characters, e.g. block comments with makeshift sections: `/*****`
+					markers: [ '/' ], // Exception for comments with single instances of these characters after the comment, e.g. TypeScript's `/// <reference>`
+					block: {
+						balanced: true, // If the comment is a block comment `/**/` instead of inline `//`, then enforce a space after the opening and before the closing
+					},
+				},
+			],
+			'eol-last': 'error', // Enforce newlines at the end of files
+			'no-multiple-empty-lines': [
+				'error',
+				{
+					// Prevent extra newlines above the `max` allowed number
+					max: Infinity, // Allow any number of newlines in code
+					maxEOF: 0, // Prevent more than 1 newline at the end of a file. Note: `eol-last` rule forces 1 newline at the end, so `0` here means 0 additional newlines after the single `eol-last` newline
+				},
+			],
+
+			/* Import rules */
+			// Ensure aliased imports are always used instead of relative paths for imports in the `src/` directory.
+			'import-alias/import-alias': [
+				'error',
+				{
+					relativeDepth: 0, // Only allow imports from same directory (e.g. `import './SubComponent'` as used in `index.js` or parent components)
+					rootDir, // Ensure root directory is correct regardless of .eslintrc file location. Requires relative path so `eslint --fix` doesn't inject absolute path in imports.
+					aliases: Object.entries(tsconfig.compilerOptions.paths).flatMap(
+						([ aliasGlob, importPathGlobs ]) => {
+							const importPathGlob = importPathGlobs[0];
+							const alias = stripTrailingSlashAndStar(aliasGlob);
+							const pathMatch = stripTrailingSlashAndStar(importPathGlob);
+
+							return {
+								alias,
+								matcher: `^${pathMatch || '.'}`,
+							};
+						},
+					),
+				},
+			],
+			// Prevent different import lines from importing from the same file (e.g. `import { x } from 'file'; import { y } from 'file'`)
+			'import/no-duplicates': [
+				'error',
+				{
+					considerQueryString: true, // Allow import queries of different values to coexist (e.g. `import 'file?a'` works with `import 'file?b'`)
+				},
+			],
+			// Sort imports by type with(out) newlines between them: https://github.com/import-js/eslint-plugin-import/blob/main/docs/rules/order.md
+			'import/order': [
+				'error',
+				{
+					groups: [
+						'builtin', // native
+						'external', // third-party installed libs
+						'internal', // source code (all types)
+						'sibling', // source code (relative path, same or lower dir)
+						'parent', // source code (relative path, higher dir) - Note: `import/no-relative-parent-imports` doesn't allow aliases so it can't be used
+						'index', // index file of current directory (`'.'`)
+						'object', // TypeScript "object" imports
+						'type', // type imports (TypeScript)
+						'unknown', // everything else
+					],
+					pathGroups: Object.entries(tsconfig.compilerOptions.paths).map(
+						([ aliasGlob, importPathGlobs ]) => {
+							const importPathGlob = importPathGlobs[0];
+							aliasGlob = `${stripTrailingSlashAndStar(aliasGlob)}/**`;
+
+							const pathGroup = {
+								pattern: aliasGlob,
+								group: 'internal', // Make the rule understand that aliased imports are still internal imports
+								position: 'before', // Ensure aliased imports come before all other internal imports, e.g. `import ChildComponent from './ChildComponent'`
+								patternOptions: {
+									dot: true, // Allow matching paths with preceding periods (e.g. `.git/` or `.gitignore`)
+								},
+							};
+
+							if (importPathGlob.match(/src/)) {
+								// Make any root-level alias for the `src` directory more important than all other internal imports and comes before them
+								pathGroup.group = 'external'; // Ensures it comes before all internal imports, including other aliases
+								pathGroup.position = 'after'; // Ensures it comes after all external imports
+							}
+
+							return pathGroup;
+						},
+					),
+					'newlines-between': 'always-and-inside-groups', // Force newlines between groups, allow them within groups
+					warnOnUnassignedImports: true, // Warn if `import 'a'` is used before `import X from 'b'` but don't error in case `a` causes global changes (e.g. a polyfill)
+					pathGroupsExcludedImportTypes: [ 'builtin', 'external', 'type' ], // Don't apply `pathGroups` sorting to these types of imports; allows type-imports to be in any order (otherwise aliased are forced before `builtin`/`external`)
+				},
+			],
+			// Ensure there is at least one newline between imports and file logic
+			'import/newline-after-import': [
+				'error',
+				{
+					count: 1,
+				},
+			],
+			// Ensure all imports resolve/exist
+			'import/no-unresolved': [
+				'error',
+				{
+					// `no-unresolved` has a different set of rules for what files trigger errors (see: https://github.com/import-js/eslint-plugin-import/blob/main/docs/rules/no-unresolved.md#ignore)
+					// which means import aliases aren't being honored by this rule and need to be added in manually.
+					ignore: Object.keys(tsconfig.compilerOptions.paths).map(
+						(aliasGlob) => `^${stripTrailingSlashAndStar(aliasGlob)}/.*`,
+					),
+				},
+			],
+			// Prevent circular dependencies
+			'import/no-cycle': [ 'error', { commonjs: true, amd: true }],
+			// Ensure imports are at the top of the file, not sprinkled throughout the body of the file
+			'import/first': 'error',
+			// Remove unused imports (since `no-unused-vars` is only `warn` for now)
+			'unused-imports/no-unused-imports': 'error',
+		},
+	},
+
+	/**
+	 * ESLint's `files` uses globs.
+	 *
+	 * Note the following differences between globs and regex:
+	 *
+	 * - *(pattern) = Zero or more occurrences.
+	 * - ?(pattern) = Zero or one occurrence.
+	 * - +(pattern) = One or more occurrences.
+	 * - @(pattern) = One occurrence.
+	 * - !(pattern) = Anything except one of the given patterns.
+	 *
+	 * Examples:
+	 *
+	 * - +(*.) = Allow any number of sub-extensions but ensure it ends with a period (e.g. matches `file.test.` in `file.test.ts`)
+	 * - ?(.)* = Allow the file to begin with a period (e.g. matches `.eslint` in `.eslintrc.js`)
+	 * - ?([mc])[tj]s = Allow the file to begin with `m` or `c` but ensure it ends with `ts` or `js` (e.g. matches `mjs`, `mts`, `js`, and `ts`)
+	 *
+	 * @see [Bash pattern matching]{@link https://www.gnu.org/savannah-checkouts/gnu/bash/manual/bash.html#Pattern-Matching}
+	 * @see [Bash globs and regex]{@link https://tldp.org/LDP/abs/html/regexp.html}
+	 * @see [NextJS sample glob for test files]{@link https://github.com/vercel/next.js/blob/f16ee05f599de27e777ac2b736c3bf820a19bd7b/examples/with-jest/.eslintrc.json}
+	 */
+
+	/* TypeScript files */
+	{
+		files: [ '**/?(.)+(*.)ts?(x)' ],
+		plugins: {
+			'@stylistic': stylisticPlugin,
+		},
+		rules: {
+			/**
+			 * Allow function overloads for different return types based on param instead of type by ignoring
+			 * redeclared function signatures and their unused parameters.
+			 *
+			 * @see [Function overload docs]{@link https://www.typescriptlang.org/docs/handbook/2/functions.html#function-overloads}
+			 * @see [Conditional function return types]{@link https://www.typescriptlang.org/docs/handbook/2/conditional-types.html}
+			 */
+			'no-redeclare': 'off',
+			'no-dupe-class-members': 'off',
+			'no-unused-vars': [
+				'warn',
+				{
+					// Allow unused variables in function definition typedefs
+					args: 'none',
+				},
+			],
+			'space-before-function-paren': [
+				'error',
+				{
+					named: 'ignore', // Allow typedefs using functions, e.g. `<Func extends () => {}>`
+				},
+			],
+			'import/export': 'off', // Allow exporting namespaces with the same name as functions for setting properties on the function
+
+			'@typescript-eslint/no-use-before-define': 'error', // Error if something is used before being referenced, allowing namespace imports
+
+			// Rules: https://github.com/typescript-eslint/typescript-eslint/blob/main/packages/eslint-plugin/README.md#supported-rules
+			'@typescript-eslint/consistent-type-imports': [
+				'error',
+				{
+					// Enforce type-import syntax using `import type { T }` and/or `import { type T }` instead of `import { T }`
+					disallowTypeAnnotations: false, // Allow type-imports when using dynamic imports
+				},
+			],
+			'@stylistic/type-annotation-spacing': 'error', // Enforce spaces after colons when typing variables and around fat-arrow (=>) in arrow functions/typedefs
+			'@typescript-eslint/no-empty-function': 'off', // Allow empty functions, i.e. `() => {}`, so that default values can have placeholders (e.g. `defaultProps`)
+			'@typescript-eslint/no-empty-interface': 'off', // Allow empty interfaces for ease of use via type/interface aliases
+			'@typescript-eslint/no-namespace': 'off', // Allow declaring/exporting namespaces for e.g. allowing functions/any type to have custom properties
+			'@typescript-eslint/no-explicit-any': 'warn', // Allow explicit `any` usage, but keep the recommendation to use a different type (e.g. `unknown` or `never`)
+			'@typescript-eslint/ban-ts-comment': [
+				'error',
+				{
+					// Ban `@ts-ignore` comments unless they have a description justifying their use
+					'ts-expect-error': 'allow-with-description',
+					'ts-ignore': 'allow-with-description',
+					'ts-nocheck': 'allow-with-description',
+					'ts-check': 'allow-with-description',
+				},
+			],
+		},
+	},
+	/* Configs, scripts, etc. */
+	{
+		files: [ './*', './config/**', './scripts/**' ],
+		rules: {
+			'import-alias/import-alias': 'off', // Allow `config/` and `scripts/` files to use relative imports (e.g. `import X from '../utils.mjs'`)
+		},
+	},
+	/* Tests */
+	{
+		files: [
+			'**/tests/**',
+			'**/__tests__/**',
+			'./config/jest/**',
+			'**/+(*.)@(test|spec).[tj]s?(x)',
+		],
+		languageOptions: {
+			globals: {
+				...globals.jest,
+			},
+		},
+	},
+]);
