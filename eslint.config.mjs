@@ -1,6 +1,7 @@
 import path from 'node:path';
 
 import eslint from '@eslint/js';
+import { includeIgnoreFile } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 import stylisticPlugin from '@stylistic/eslint-plugin';
 import importPlugin from 'eslint-plugin-import';
@@ -13,12 +14,14 @@ import tsconfig from './tsconfig.json' with { type: 'json' };
 
 const rootDir = import.meta.dirname;
 const tsconfigPath = path.resolve(rootDir, 'tsconfig.json');
+const gitignorePath = path.resolve(rootDir, '.gitignore');
 
 function stripTrailingSlashAndStar(str) {
 	return str.replace(/[*/]*$/, '');
 }
 
 export default tseslint.config([
+	includeIgnoreFile(gitignorePath, { gitignoreResolution: true }),
 	importPlugin.flatConfigs.recommended,
 	importPlugin.flatConfigs.typescript,
 	eslint.configs.recommended,
