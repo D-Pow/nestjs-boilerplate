@@ -37,10 +37,10 @@ export default tseslint.config([
 
 				tsconfigRootDir: rootDir, // Directory that all tsconfig files' paths are relative to in the `parserOptions.project` option
 				// project: tsconfigPath, // tsconfig file (or array of files) from which to extract. Included automatically with `tseslint.config()`
-				projectService: {
-					// Add JS files to eslint-plugin-import
-					allowDefaultProject: [ '*.js', '*.mjs' ],
-				},
+				// projectService: {
+				// 	// Add JS files to eslint-plugin-import if not included in tsconfig.json
+				// 	allowDefaultProject: [ '*.js', '*.mjs' ],
+				// },
 			},
 		},
 		plugins: {
