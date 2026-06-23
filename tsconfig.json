@@ -1,42 +1,64 @@
 {
-  "compilerOptions": {
-    "target": "ESNext",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "strict": true,
-    "allowJs": true,
-    "skipLibCheck": true,
-    "isolatedModules": true,
-    "declaration": true,
-    "removeComments": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "strictNullChecks": true,
-    "resolvePackageJsonExports": true,
-    "resolveJsonModule": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "forceConsistentCasingInFileNames": true,
-    "preserveSymlinks": false,
-    "sourceMap": true,
-    "incremental": true,
-    "noImplicitAny": false,
-    "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false,
-    "newLine": "lf",
-    "outDir": "dist",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"],
-      "~/*": ["*"]
-    }
-  },
-  "include": [
-    "./**/*",
-    "./**/.*"
-  ],
-  "exclude": [
-    "./node_modules",
-    "dist"
-  ]
+	"compilerOptions": {
+		"target": "ESNext",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"lib": [ "ESNext" ],
+		"strict": true,
+		"allowJs": true,
+		"skipLibCheck": true,
+		"isolatedModules": true,
+		"declaration": true,
+		"removeComments": true,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"strictNullChecks": true,
+		"resolvePackageJsonExports": true,
+		"resolveJsonModule": true,
+		"emitDecoratorMetadata": true,
+		"experimentalDecorators": true,
+		"forceConsistentCasingInFileNames": true,
+		"preserveSymlinks": false,
+		"sourceMap": true,
+		"incremental": true,
+		"noImplicitAny": false,
+		"strictBindCallApply": false,
+		"noFallthroughCasesInSwitch": false,
+		"newLine": "lf",
+		"outDir": "dist",
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["src/*"],
+			"~/*": ["*"]
+		}
+	},
+	"include": [
+		"./**/*",
+		"./**/.*"
+	],
+	"exclude": [
+		"./node_modules",
+		"dist"
+	],
+	"ts-node": {
+		"require": [
+			"tsconfig-paths/register"
+		],
+		"preferTsExts": true,
+		"experimentalReplAwait": true,
+		"experimentalResolver": true,
+		"transpileOnly": true,
+		"moduleTypes": {
+			"**/*.cjs": "cjs"
+		},
+		"compilerOptions": {
+			"module": "NodeNext",
+			"moduleResolution": "NodeNext",
+			"isolatedModules": false
+		},
+		"pretty": true,
+		"include": [
+			"./**/*"
+		]
+	}
 }
