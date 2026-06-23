@@ -9,9 +9,7 @@ function stripTrailingSlashAndStar(str) {
 	return str.replace(/[*/]*$/, '');
 }
 
-/**
- * @type {import('@jest/types').Config.InitialOptions}
- */
+/** @type {import('@jest/types').Config.InitialOptions} */
 export default {
 	testEnvironment: 'node',
 	moduleFileExtensions: [
