@@ -442,6 +442,18 @@ export default tseslint.config([
 			],
 		},
 	},
+	/* NestJS Controllers and Services require importing the class, not the type. See: https://github.com/biomejs/biome/issues/4514#issuecomment-2902049067 */
+	{
+		files: [ '**/*.controller.ts', '**/*.service.ts' ],
+		rules: {
+			'@typescript-eslint/consistent-type-imports': [
+				'off',
+				{
+					disallowTypeAnnotations: false,
+				},
+			],
+		},
+	},
 	/* Configs, scripts, etc. */
 	{
 		files: [ './*', './config/**', './scripts/**' ],
