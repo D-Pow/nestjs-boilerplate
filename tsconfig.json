@@ -4,6 +4,10 @@
 		"module": "NodeNext",
 		"moduleResolution": "NodeNext",
 		"lib": [ "ESNext" ],
+		"types": [
+			"node",
+			"jest"
+		],
 		"strict": true,
 		"allowJs": true,
 		"skipLibCheck": true,
@@ -26,10 +30,10 @@
 		"noFallthroughCasesInSwitch": false,
 		"newLine": "lf",
 		"outDir": "dist",
-		"baseUrl": ".",
+		"rootDir": ".",
 		"paths": {
-			"@/*": ["src/*"],
-			"~/*": ["*"]
+			"@/*": [ "./src/*" ],
+			"~/*": [ "./*" ]
 		}
 	},
 	"include": [
