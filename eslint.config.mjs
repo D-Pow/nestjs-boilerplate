@@ -161,6 +161,15 @@ export default tseslint.config([
 					allowArrowFunctions: true, // Allow arrow functions, i.e. allow `const foo = () => {...}` but not `const foo = function () {...}`
 				},
 			],
+			'no-restricted-syntax': [ // Generic catch-all for any language feature
+				'error',
+				{
+					// Only allow assignments as their own statement (or in a for-loop header), e.g. error: `map.set(k, (x = []))`
+					selector:
+						'AssignmentExpression:not(ExpressionStatement > AssignmentExpression, ForStatement > AssignmentExpression.init, ForStatement > AssignmentExpression.update)',
+					message: 'Do not use an assignment as a value; assign on its own line, then use the variable.',
+				},
+			],
 
 			/* Spacing rules */
 			indent: [
