@@ -161,6 +161,7 @@ export default tseslint.config([
 					allowArrowFunctions: true, // Allow arrow functions, i.e. allow `const foo = () => {...}` but not `const foo = function () {...}`
 				},
 			],
+			'function-paren-newline': [ 'error', 'multiline-arguments' ], // If one arg in a function is on a separate line, then all of then must be
 			'no-restricted-syntax': [ // Generic catch-all for any language feature
 				'error',
 				{
