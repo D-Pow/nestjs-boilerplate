@@ -2,6 +2,7 @@ import os from 'node:os';
 import cluster from 'node:cluster';
 
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 
 import { AppModule } from '@/app.module';
 
@@ -10,6 +11,10 @@ async function bootstrap() {
 	const port = process.env.PORT ?? 8000;
 
 	app.enableShutdownHooks(); // Let in-flight requests finish before the process exits on SIGTERM/SIGINT.
+	app.useGlobalPipes(new ValidationPipe({ // Transform endpoint input data to the correct TS types.
+		transform: true,
+	}));
+
 	await app.listen(port);
 
 	console.log(`[worker ${process.pid}] listening on :${port}`);
