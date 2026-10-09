@@ -6,6 +6,8 @@ import { ValidationPipe } from '@nestjs/common';
 
 import { AppModule } from '@/app.module';
 
+const isProd = process.env.NODE_ENV === 'production';
+
 async function bootstrap() {
 	const app = await NestFactory.create(AppModule);
 	const port = process.env.PORT ?? 8000;
@@ -13,6 +15,11 @@ async function bootstrap() {
 	app.enableShutdownHooks(); // Let in-flight requests finish before the process exits on SIGTERM/SIGINT.
 	app.useGlobalPipes(new ValidationPipe({ // Transform endpoint input data to the correct TS types.
 		transform: true,
+		transformOptions: {
+			enableImplicitConversion: true, // Cast vars that behave like others (e.g. '1' => 1)
+			enableCircularCheck: true,
+		},
+		enableDebugMessages: !isProd,
 	}));
 
 	await app.listen(port);
