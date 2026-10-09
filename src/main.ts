@@ -3,8 +3,11 @@ import cluster from 'node:cluster';
 
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from '@/app.module';
+
+import packageJson from '~/package.json';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -21,6 +24,14 @@ async function bootstrap() {
 		},
 		enableDebugMessages: !isProd,
 	}));
+
+	const swaggerConfig = new DocumentBuilder()
+		.setTitle('NestJS API')
+		.setDescription('API Specification for server.')
+		.setVersion(packageJson.version)
+		.build();
+	const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+	SwaggerModule.setup('docs', app, swaggerDocument);
 
 	await app.listen(port);
 
