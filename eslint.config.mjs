@@ -178,7 +178,13 @@ export default tseslint.config([
 				{
 					// Indent with 4 spaces, not tab or 2 spaces
 					SwitchCase: 1, // Same for switch-case statements
-					ignoredNodes: [ 'TemplateLiteral' ],
+					ignoredNodes: [
+						'TemplateLiteral',
+						// Decorators cause vars to indent incorrectly. Fix it by ignoring it.
+						'FunctionExpression > .params[decorators.length > 0]',
+						'FunctionExpression > .params > :matches(Decorator, :not(:first-child))',
+						'ClassBody.body > PropertyDefinition[decorators.length > 0] > .key',
+					],
 				},
 			],
 			'keyword-spacing': 'error', // Enforce spaces around language keywords, e.g. else would error in `if (foo) {...}else{...}`
